@@ -10,7 +10,7 @@ module.exports = {
                 score: msg => Math.exp(4 * (msg.count/msg.length - 0.1)) - Math.exp(-0.4)
             },
             {
-                regex: /accepted|rejected/gi,
+                regex: /got in|accepted|rejected|waitlisted/gi,
                 score: msg => msg.count > 0 ? 1 : 0
             },
         ],
