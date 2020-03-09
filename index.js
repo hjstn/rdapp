@@ -90,7 +90,7 @@ class RDER {
             const uniName = this.unis_map[id];
             if (session.data.unis.indexOf(uniName) !== -1) {
                 this.telegram.bot.telegram.sendMessage(session.id.split(':')[0],
-                `${uniName} passed the hype check. Maybe decisions are out (${this.activity[id]} in ${config.activity.timeout}ms).`,
+                `${uniName} passed the hype check. Maybe decisions are out (${this.activity[id]} in ${config.activity.timeout / 1000 / 60}mins).`,
                 Markup.inlineKeyboard([
                     Markup.urlButton('Check', `https://www.reddit.com/r/ApplyingToCollege/comments/${id.slice(3)}/`)
                 ]).extra());

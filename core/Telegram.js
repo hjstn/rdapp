@@ -30,7 +30,7 @@ class Telegram {
 
         bot.command('quit', ctx => {
             ctx.session = null;
-            ctx.leaveChat();
+            ctx.reply('Goodbye!');
         });
 
         bot.command('uni', ctx => {
@@ -51,17 +51,6 @@ class Telegram {
             }
 
             ctx.reply(`${foundUni !== -1 ? 'Removed' : 'Added'}! Your list: ${ctx.session.unis.map(uni => rder.unis_map[uni]).join(', ')}`);
-        });
-
-        bot.command('fix', ctx => {
-            ctx.session.unis.forEach((uniInList, index) => {
-                if (!(uniInList in rder.unis_map)) {
-                    const findUni = rder.unis.find(uniObj => uniObj.name === uniInList);
-                    if (findUni) ctx.session.unis[index] = findUni.thread;
-                }
-            });
-
-            ctx.reply('Ran fix.');
         });
 
         bot.launch();
