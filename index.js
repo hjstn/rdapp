@@ -89,7 +89,7 @@ class RDER {
         this.telegram.localSession.DB.get('sessions').value().forEach(session => {
             if (session.data.unis.indexOf(id) !== -1) {
                 this.telegram.bot.telegram.sendMessage(session.id.split(':')[0],
-                `${uniName} passed the hype check. Maybe decisions are out (${this.activity[id]} in ${config.activity.timeout / 1000 / 60}mins).`,
+                `${this.unis_map[id]} passed the hype check. Maybe decisions are out (${this.activity[id]} in ${config.activity.timeout / 1000 / 60}mins).`,
                 Markup.inlineKeyboard([
                     Markup.urlButton('Check', `https://www.reddit.com/r/ApplyingToCollege/comments/${id.slice(3)}/`)
                 ]).extra());
