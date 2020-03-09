@@ -49,7 +49,7 @@ class RDER {
             const itemHype = this.hypeMeter.isHype(item.body);
 
             if (itemHype) {
-                this.addActivity(item.link_id);
+                this.addActivity(item.link_id, item.author.name);
             }
             console.log(`[Activity][${this.humanName(item.link_id)}][${itemHype}] Comment by ${item.author.name}.`);
         });
@@ -59,23 +59,31 @@ class RDER {
         return `${id}/${this.unis_map[id]}`;
     }
 
-    addActivity(id) {
-        if (!(id in this.activity) || this.activity[id] < 0) this.activity[id] = 0;
+    addActivity(id, author) {
+        if (!(id in this.activity)) this.activity[id] = [];
 
-        this.activity[id]++;
-        console.log(`[Activity][${this.humanName(id)}] Adding activity (${this.activity[id]}).`);
+        if (this.activity[id].indexOf(author) === -1) {
+            this.activity[id].push(author);
+            console.log(`[Activity][${this.humanName(id)}] Adding activity (${this.activity[id].length}).`);
+        } else {
+            console.log(`[Activity][${this.humanName(id)}] Same user, not adding activity (${this.activity[id].length}).`)
+        }
 
         setTimeout(() => {
-            this.activity[id]--;
-            console.log(`[Activity][${this.humanName(id)}] Removing activity (${this.activity[id]}).`);
+            const activityIndex = this.activity[id].indexOf(author);
+            
+            if (activityIndex !== -1) {
+                this.activity[id].splice(activityIndex, 1);
+                console.log(`[Activity][${this.humanName(id)}] Removing activity (${this.activity[id].length}).`);
+            }
         }, config.activity.timeout);
 
         this.checkHype(id);
     }
 
     checkHype(id) {
-        if (this.activity[id] < config.activity.threshold) {
-            console.log(`[Activity][${this.humanName(id)}] Failed the hype check (${this.activity[id]}).`);
+        if (this.activity[id].length < config.activity.threshold) {
+            console.log(`[Activity][${this.humanName(id)}] Failed the hype check (${this.activity[id].length}).`);
         } else {
             this.announceHype(id);
         }
@@ -84,12 +92,12 @@ class RDER {
     announceHype(id) {
         if (this.announced.indexOf(id) !== -1) return;
 
-        console.log(`[Activity][${this.humanName(id)}] Announcing hype (${this.activity[id]}).`);
+        console.log(`[Activity][${this.humanName(id)}] Announcing hype (${this.activity[id].length}).`);
 
         this.telegram.localSession.DB.get('sessions').value().forEach(session => {
             if (session.data.unis.indexOf(id) !== -1) {
                 this.telegram.bot.telegram.sendMessage(session.id.split(':')[0],
-                `${this.unis_map[id]} passed the hype check. Maybe decisions are out (${this.activity[id]} in ${config.activity.timeout / 1000 / 60}mins).`,
+                `${this.unis_map[id]} passed the hype check. Maybe decisions are out (messages from ${this.activity[id].join(', ')} in ${config.activity.timeout / 1000 / 60}mins).`,
                 Markup.inlineKeyboard([
                     Markup.urlButton('Check', `https://www.reddit.com/r/ApplyingToCollege/comments/${id.slice(3)}/`)
                 ]).extra());
