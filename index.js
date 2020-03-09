@@ -87,8 +87,7 @@ class RDER {
         console.log(`[Activity][${this.humanName(id)}] Announcing hype (${this.activity[id]}).`);
 
         this.telegram.localSession.DB.get('sessions').value().forEach(session => {
-            const uniName = this.unis_map[id];
-            if (session.data.unis.indexOf(uniName) !== -1) {
+            if (session.data.unis.indexOf(id) !== -1) {
                 this.telegram.bot.telegram.sendMessage(session.id.split(':')[0],
                 `${uniName} passed the hype check. Maybe decisions are out (${this.activity[id]} in ${config.activity.timeout / 1000 / 60}mins).`,
                 Markup.inlineKeyboard([
