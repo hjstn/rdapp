@@ -1,0 +1,18 @@
+{
+  "name": "rder_server",
+  "version": "1.0.0",
+  "description": "A RD applicant's dream.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Justin Hu",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "snoostorm": "^1.3.0",
+    "snoowrap": "^1.21.0",
+    "telegraf": "^3.36.0",
+    "telegraf-command-parts": "^1.0.3",
+    "telegraf-session-local": "^1.0.2"
+  }
+}
