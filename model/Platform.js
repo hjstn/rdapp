@@ -11,8 +11,20 @@ class Platform {
         this.events = new PlatformEmitter();
     }
 
+    isAdmin(user) {
+        throw new Error('isAdmin not implemented.');
+    }
+
     sendHype() {
         throw new Error('sendHype not implemented.');
+    }
+
+    sendUniList(user, prefix, unis = []) {
+        throw new Error('sendUniList not implemented.');
+    }
+
+    sendMessage(user, message, links = []) {
+        throw new Error('sendMessage not implemented.');
     }
 }
 
