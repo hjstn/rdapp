@@ -19,5 +19,6 @@ module.exports = {
     activity: {
         timeout: 30 * 60 * 1000,
         threshold: 3
-    }
+    },
+    storage: 'rderDB.json'
 };

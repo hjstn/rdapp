@@ -7,10 +7,9 @@ const path = require('path');
 const { CommentStream } = require("snoostorm");
 const Snoowrap = require("snoowrap");
 
-const Markup = require('telegraf/markup');
-
 const HypeMeter = require('./core/HypeMeter');
 const Telegram = require('./core/Telegram');
+const Storage = require('./core/Storage');
 
 const reddit = new Snoowrap({
     userAgent: 'Rder',
@@ -25,26 +24,30 @@ const unis = fs.readFileSync(path.join(__dirname, './unis.csv'), { encoding: 'ut
     return { name: uni_data[0], thread: uni_data[1] };
 });
 
-class RDER {
+class Rder {
     constructor(unis = []) {
         this.unis = unis;
         this.unis_plain = unis.map(uni => uni.name);
-        this.unis_threads = unis.map(uni => uni.thread);
+        this.unis_ids = unis.map(uni => uni.thread);
 
         this.unis_map = {};
         this.unis.forEach(uni => this.unis_map[uni.thread] = uni.name);
 
         this.activity = {};
+        this.unis_ids.forEach(unis_id => this.activity[unis_id] = []);
+
         this.announced = [];
         
         this.unis_plain.forEach(uni => this.activity[uni] = []);
 
+        this.storage = new Storage(path.join(__dirname, config.storage));
+
         this.hypeMeter = new HypeMeter(config.hypeMeter);
-        this.telegram = new Telegram({ token: keys.telegram }, this);
+        this.telegram = new Telegram({ ...config.telegram, ...keys.telegram }, this);
 
         const decisionStream = new CommentStream(reddit, { subreddit: "ApplyingToCollege", pollTime: 2000 });
         decisionStream.on('item', item => {
-            if (this.unis_threads.indexOf(item.link_id) === -1) return;
+            if (this.unis_ids.indexOf(item.link_id) < 0) return;
 
             const itemHype = this.hypeMeter.isHype(item.body);
 
@@ -55,14 +58,44 @@ class RDER {
         });
     }
 
+    uniNameExists(name) {
+        return this.unis_plain.indexOf(name) > -1;
+    }
+
+    getUniIDFromName(name) {
+        const uni = this.unis.find(uni => uni.name === name);
+
+        if (!uni) return undefined;
+        return uni.thread;
+    }
+
     humanName(id) {
         return `${id}/${this.unis_map[id]}`;
     }
 
-    addActivity(id, author) {
-        if (!(id in this.activity)) this.activity[id] = [];
+    deleteUser(user) {
+        this.storage.deleteUser(user);
+        this.telegram.sendMessage(user, 'Goodbye!');
+    }
 
-        if (this.activity[id].indexOf(author) === -1) {
+    updateUser(user, id) {
+        const userObject = this.storage.getUser(user);
+        
+        const uniIndex = userObject.unis.indexOf(id);
+
+        if (uniIndex < 0) {
+            userObject.unis.push(id);
+        } else {
+            userObject.unis.splice(uniIndex, 1);
+        }
+
+        this.telegram.sendMessage(user, `${uniIndex !== -1 ? 'Removed' : 'Added'}! Your list: ${userObject.unis.map(uni => this.unis_map[uni]).join(', ')}`);
+
+        this.storage.updateUser(user, userObject);
+    }
+
+    addActivity(id, author) {
+        if (this.activity[id].indexOf(author) < 0) {
             this.activity[id].push(author);
             console.log(`[Activity][${this.humanName(id)}] Adding activity (${this.activity[id].length}).`);
         } else {
@@ -72,7 +105,7 @@ class RDER {
         setTimeout(() => {
             const activityIndex = this.activity[id].indexOf(author);
             
-            if (activityIndex !== -1) {
+            if (activityIndex > -1) {
                 this.activity[id].splice(activityIndex, 1);
                 console.log(`[Activity][${this.humanName(id)}] Removing activity (${this.activity[id].length}).`);
             }
@@ -90,17 +123,18 @@ class RDER {
     }
 
     announceHype(id) {
-        if (this.announced.indexOf(id) !== -1) return;
+        if (this.announced.indexOf(id) > -1) return;
 
         console.log(`[Activity][${this.humanName(id)}] Announcing hype (${this.activity[id].length}).`);
 
-        this.telegram.localSession.DB.get('sessions').value().forEach(session => {
-            if (session.data.unis.indexOf(id) !== -1) {
-                this.telegram.bot.telegram.sendMessage(session.id.split(':')[0],
-                `${this.unis_map[id]} passed the hype check. Maybe decisions are out (messages from ${this.activity[id].join(', ')} in ${config.activity.timeout / 1000 / 60}mins).`,
-                Markup.inlineKeyboard([
-                    Markup.urlButton('Check', `https://www.reddit.com/r/ApplyingToCollege/comments/${id.slice(3)}/`)
-                ]).extra());
+        this.storage.allUsers().forEach(userObject => {
+            if (userObject.unis.indexOf(id) > -1) {
+                this.telegram.sendHype(userObject.id, {
+                    id,
+                    name: this.unis_map[id],
+                    activity: this.activity[id],
+                    timeout: config.activity.timeout
+                });
             }
         });
 
@@ -108,9 +142,9 @@ class RDER {
         setTimeout(() => {
             const announcedIndex = this.announced.indexOf(id);
 
-            if (announcedIndex !== -1) this.announced.splice(announcedIndex, 1);
+            if (announcedIndex > -1) this.announced.splice(announcedIndex, 1);
         }, 2 * config.activity.timeout);
     }
 }
 
-const rder = new RDER(unis);
+const rder = new Rder(unis);

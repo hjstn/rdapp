@@ -9,10 +9,11 @@
   "author": "Justin Hu",
   "license": "UNLICENSED",
   "dependencies": {
+    "lodash-id": "^0.14.0",
+    "lowdb": "^1.0.0",
     "snoostorm": "^1.3.0",
     "snoowrap": "^1.21.0",
     "telegraf": "^3.36.0",
-    "telegraf-command-parts": "^1.0.3",
-    "telegraf-session-local": "^1.0.2"
+    "telegraf-command-parts": "^1.0.3"
   }
 }

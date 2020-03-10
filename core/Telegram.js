@@ -1,61 +1,114 @@
 const path = require('path');
+const EventEmitter = require('events');
+
+const Platform = require('../model/Platform');
 
 const Telegraf = require('telegraf');
+const Markup = require('telegraf/markup');
 const Extra = require('telegraf/extra');
 
 const CommandParts = require('telegraf-command-parts');
-const LocalSession = require('telegraf-session-local');
 
-class Telegram {
-    constructor(config = {}, rder) {
-        this.config = config;
-        this.rder = rder;
+class Telegram extends Platform {
+    constructor(...args) {
+        super(...args);
 
-        this.localSession = new LocalSession({
-            database: path.join(__dirname,'..', 'rderbot.json')
-        });
+        if (!('token' in this.config)) throw new Error('No Telegram token provided.');
 
-        if (!('token' in config)) throw new Error('No Telegram token provided.');
+        const bot = new Telegraf(this.config.token);
 
-        const bot = new Telegraf(config.token);
-
-        bot.use(this.localSession.middleware());
         bot.use(CommandParts());
 
         bot.command('start', ctx => {
-           return ctx.reply('Select the universities you would like to follow or unfollow.', Extra.markup(m => 
-                m.keyboard(rder.unis_plain.map(uni => `/uni ${uni}`)).oneTime().resize()
-            ));
+            this.sendUniList(ctx.from.id, 'uni', this.rder.unis_plain);
         });
 
         bot.command('quit', ctx => {
-            ctx.session = null;
-            ctx.reply('Goodbye!');
+            this.rder.deleteUser(ctx.from.id);
         });
 
         bot.command('uni', ctx => {
-            const uniName = ctx.state.command.args;
+            const name = ctx.state.command.args;
 
-            if (rder.unis_plain.indexOf(uniName) === -1) return ctx.reply('That university is not on the list.');
+            if (!this.rder.uniNameExists(name)) return this.sendMessage(ctx.from.id, 'That university is not on the list.');
 
-            if (!('unis' in ctx.session)) ctx.session.unis = [];
+            const id = this.rder.getUniIDFromName(name);
+            if (!id) return this.sendMessage(ctx.from.id, 'Could not find university ID. Contact the admin.');
 
-            const uniID = rder.unis.find(uni => uni.name === uniName).thread;
+            this.rder.updateUser(ctx.from.id, id);
+        });
+ 
 
-            const foundUni = ctx.session.unis.indexOf(uniID);
+        bot.command('announce', ctx => {
+            if (!this.isAdmin(ctx.from.id)) return;
 
-            if (foundUni !== -1) {
-                ctx.session.unis.splice(foundUni, 1);
-            } else {
-                ctx.session.unis.push(uniID);
-            }
+            const name = ctx.state.command.args;
 
-            ctx.reply(`${foundUni !== -1 ? 'Removed' : 'Added'}! Your list: ${ctx.session.unis.map(uni => rder.unis_map[uni]).join(', ')}`);
+            if (name === '') return this.sendUniList(ctx.from.id, 'announce', this.rder.unis_plain);
+
+            if (!this.rder.uniNameExists(name)) return this.sendMessage(ctx.from.id, 'That university is not on the list.');
+
+            const id = this.rder.getUniIDFromName(name);
+            if (!id) return this.sendMessage(ctx.from.id, 'Could not find university ID. Contact the admin.');
+
+            this.sendMessage(ctx.from.id, 'Announcing.');
+            console.log(`[Telegram][${ctx.from.id}] Admin announce: ${this.rder.humanName(id)}`);
+            this.rder.announceHype(id);
+        });
+
+        bot.command('broadcast', ctx => {
+            if (!this.isAdmin(ctx.from.id)) return;
+            
+            console.log(`[Telegram][${ctx.from.id}] Admin broadcast: ${ctx.state.command.args}`);
+            this.rder.storage.allUsers().forEach(userObject => this.sendMessage(userObject.id, `(Admin) ${ctx.state.command.args}`));
         });
 
         bot.launch();
 
         this.bot = bot;
+    }
+
+    isAdmin(user) {
+        if (this.config.admins.indexOf(user) < 0) {
+            this.sendMessage(user, 'You are not an admin.');
+            console.log(`[Telegram][${user}] User attempted admin command.`);
+
+            return false;
+        }
+
+        return true;
+    }
+
+    sendHype(user, hype) {
+        this.sendMessage(user,
+            `${hype.name} passed the hype check. Maybe decisions are out (messages from ${hype.activity.length > 0 ? hype.activity.join(', ') : 'ADMIN'} in ${hype.timeout / 1000 / 60}mins).`,
+            [ { name: 'Check', url: `https://www.reddit.com/r/ApplyingToCollege/comments/${hype.id.slice(3)}/`} ]
+        );
+    }
+
+    sendUniList(user, prefix, unis = []) {
+        this._sendMessage(user, 'Select your universities.', Extra.markup(m => 
+            m.keyboard(unis.map(uni => `/${prefix} ${uni}`)).oneTime().resize()
+        ));
+    }
+
+    sendMessage(user, message, links = []) {
+        let markup;
+
+        if (links.length > 0) markup = Markup.inlineKeyboard(links.map(link => 
+            Markup.urlButton(link.name, link.url)
+        )).extra();
+
+        this._sendMessage(user, message, markup);
+    }
+
+    _sendMessage(user, message, markup) {
+        this.bot.telegram.sendMessage(user, message, markup).catch(err => {
+            if (err.code === 403) {
+                console.log(`[Telegram][${user}] User blocked us, deleting.`);
+                this.rder.deleteUser(user);
+            }
+        });
     }
 }
 
