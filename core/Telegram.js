@@ -82,7 +82,7 @@ class Telegram extends Platform {
     sendHype(user, hype) {
         this.sendMessage(user,
             `${hype.name} passed the hype check. Maybe decisions are out (messages from ${hype.activity.length > 0 ? hype.activity.join(', ') : 'ADMIN'} in ${hype.timeout / 1000 / 60}mins).`,
-            [ { name: 'Check', url: `https://www.reddit.com/r/ApplyingToCollege/comments/${hype.id.slice(3)}/`} ]
+            [ { name: 'Check', url: `https://www.reddit.com/r/ApplyingToCollege/comments/${hype.id.slice(3)}/?sort=new`} ]
         );
     }
 
