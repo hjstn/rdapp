@@ -143,7 +143,7 @@ class Rder {
             const announcedIndex = this.announced.indexOf(id);
 
             if (announcedIndex > -1) this.announced.splice(announcedIndex, 1);
-        }, 2 * config.activity.timeout);
+        }, config.announce.timeout);
     }
 }
 

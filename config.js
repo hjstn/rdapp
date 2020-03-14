@@ -14,11 +14,14 @@ module.exports = {
                 score: msg => msg.count > 0 ? 1 : 0
             },
         ],
-        threshold: 1
+        threshold: 6/5
     },
     activity: {
         timeout: 30 * 60 * 1000,
         threshold: 5
+    },
+    announce: {
+        timeout: 2 * 60 * 60 * 1000
     },
     storage: 'rderDB.json'
 };
